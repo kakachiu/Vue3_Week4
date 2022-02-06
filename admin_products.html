@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>後台商品管理</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="css/all.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="container mt-3">
+        <div class="row py-3">
+          <div class="col-md-7">
+            <h2 class="mb-3">產品列表</h2>
+            <button
+              class="btn btn-primary"
+              type="button"
+              @click="judgeModal('new')"
+            >
+              新增產品
+            </button>
+            <table class="table table-hover mt-4">
+              <thead>
+                <tr>
+                  <th width="150">產品名稱</th>
+                  <th width="120">原價</th>
+                  <th width="120">售價</th>
+                  <th width="150">是否啟用</th>
+                  <th width="130">查看細節</th>
+                  <th width="120">編輯</th>
+                  <th width="120">刪除</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in products" :key="item.id">
+                  <td width="150">{{ item.title }}</td>
+                  <td width="120">{{ item.origin_price }} 元</td>
+                  <td width="120">{{ item.price }} 元</td>
+                  <td width="150">
+                    <span class="text-success" v-if="item.is_enabled">啟用</span
+                    ><span class="text-danger" v-else>未啟用</span>
+                  </td>
+                  <td width="130">
+                    <button
+                      class="btn btn-primary"
+                      type="button"
+                      @click="judgeModal('showDetail',item)"
+                    >
+                      查看細節
+                    </button>
+                  </td>
+                  <td width="120">
+                    <button
+                      class="btn btn-primary"
+                      type="button"
+                      @click="judgeModal('edit',item)"
+                    >
+                      編輯
+                    </button>
+                  </td>
+                  <td width="120">
+                    <button
+                      class="btn btn-outline-danger"
+                      type="button"
+                      @click="judgeModal('delete',item)"
+                    >
+                      刪除
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="mb-3">目前有 <span>{{ products.length }}</span> 項產品</p>
+            <!-- 分頁-->
+            <pagination
+              :pagination="pagination"
+              @change-page="getProducts"
+            ></pagination>
+          </div>
+          <div class="col-md-5">
+            <h2>單一產品細節</h2>
+            <template v-if="temp.id">
+              <div class="card mb-3">
+                <img
+                  class="card-img-top primary-image"
+                  :src="temp.imageUrl"
+                  alt="主圖"
+                />
+                <div class="card-body">
+                  <h5 class="card-title">
+                    {{ temp.title }}<span class="badge bg-primary ms-2"
+                      >{{ temp.category }}</span
+                    >
+                  </h5>
+                  <p class="card-text">商品描述：{{ temp.description }}</p>
+                  <p class="card-text">商品內容：{{ temp.content }}</p>
+                  <div class="d-flex">
+                    <p class="card-text me-2">{{ temp.price }}</p>
+                    <p class="card-text text-secondary">
+                      <del>{{ temp.origin_price }}</del>
+                    </p>
+                    {{ temp.unit }} / 元
+                  </div>
+                </div>
+              </div>
+              <template v-for="(item,id) in temp.imagesUrl" :key="id"
+                ><img class="images m-2" :src="item" alt=""
+              /></template>
+            </template>
+            <p class="text-secondary" v-else>請選擇一個商品查看</p>
+          </div>
+        </div>
+      </div>
+      <!-- 新增 & 修改 Modal-->
+      <product-modals
+        :temp="temp"
+        @check-edit="checkEdit"
+        @create-images="createImages"
+        @del-image="delImage"
+      ></product-modals>
+      <!-- 刪除 Modal-->
+      <del-modal :temp="temp" @del-product="delProduct"></del-modal>
+    </div>
+    <script src="https://unpkg.com/vue@next"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.1/dist/umd/popper.min.js"></script>
+    <script type="module">
+      import productModals from "./js/product_modal.js";
+      import delModal from "./js/del_modal.js";
+      import pagination from "./js/pagination.js";
+
+      const url = "https://vue3-course-api.hexschool.io/v2";
+      const path = "kakachiu";
+      let productModal = "";
+      let delProductModal = "";
+
+      const app = {
+        data() {
+          return {
+            products: [],
+            temp: {},
+            pagination: {}
+          };
+        },
+        components: {
+          productModals,
+          delModal,
+          pagination
+        },
+        methods: {
+          createImages() {
+            this.temp.imagesUrl = []; // 新增空字串
+            this.temp.imagesUrl.push(""); // 再將內容推入
+          },
+          delImage(id) {
+            this.temp.imagesUrl.splice(id, 1); // 帶入傳入的索引值，使用 splice 刪除
+          },
+          judgeModal(isNew, item) {
+            switch (isNew) {
+              case "new":
+                this.temp = {};
+                productModal.show();
+                break;
+              case "edit":
+                this.temp = { ...item };
+                productModal.show();
+                break;
+              case "showDetail":
+                this.temp = { ...item };
+                break;
+              case "delete":
+                this.temp = { ...item };
+                delProductModal.show();
+                break;
+              default:
+                break;
+            }
+          },
+          checkEdit() {
+            const product = {
+              data: {
+                title: this.temp.title,
+                category: this.temp.category,
+                origin_price: this.temp.origin_price,
+                price: this.temp.price,
+                unit: this.temp.unit,
+                description: this.temp.description,
+                content: this.temp.content,
+                is_enabled: this.temp.is_enabled,
+                imageUrl: this.temp.imageUrl,
+                imagesUrl: [this.temp.imagesUrl][0] // 多張圖片，格式為陣列
+              }
+            };
+
+            if (!this.temp.id) {
+              axios
+                .post(`${url}/api/${path}/admin/product/`, product)
+                .then(res => {
+                  alert(res.data.message);
+                  productModal.hide();
+                  this.getProducts();
+                  this.temp = {};
+                })
+                .catch(error => {
+                  alert(error.response.data.message);
+                });
+            } else {
+              axios
+                .put(
+                  `${url}/api/${path}/admin/product/${this.temp.id}`,
+                  product
+                )
+                .then(res => {
+                  alert(res.data.message);
+                  productModal.hide();
+                  this.getProducts();
+                  this.temp = {};
+                })
+                .catch(error => {
+                  alert(error.response.data.message);
+                });
+            }
+          },
+          delProduct(id) {
+            axios
+              .delete(`${url}/api/${path}/admin/product/${id}`)
+              .then(res => {
+                alert(res.data.message);
+                delProductModal.hide();
+                this.getProducts();
+                this.temp = {};
+              })
+              .catch(error => {
+                alert(error.response.data.message);
+              });
+          },
+          getProducts(page = 1) {
+            axios
+              .get(`${url}/api/${path}/admin/products?page=${page}`)
+              .then(res => {
+                this.products = res.data.products;
+                this.pagination = res.data.pagination;
+              })
+              .catch(error => {
+                alert(error.response.data.message);
+              });
+          },
+          checkAuth() {
+            const token = document.cookie.replace(
+              /(?:(?:^|.*;\s*)token\s*\=\s*([^;]*).*$)|^.*$/,
+              "$1"
+            );
+            axios.defaults.headers.common["Authorization"] = token;
+
+            axios
+              .post(`${url}/api/user/check`)
+              .then(res => {})
+              .catch(error => {
+                if (error.response.data.success === false) {
+                  alert(error.response.data.message);
+                  location.href = "index.html";
+                }
+              });
+          }
+        },
+        created() {
+          this.checkAuth();
+          this.getProducts();
+        },
+        mounted() {
+          productModal = new bootstrap.Modal(
+            document.querySelector("#productModal"),
+            {
+              backdrop: "static",
+              keyboard: false
+            }
+          );
+          delProductModal = new bootstrap.Modal(
+            document.querySelector("#delProductModal"),
+            {
+              backdrop: "static",
+              keyboard: false
+            }
+          );
+        }
+      };
+      Vue.createApp(app).mount("#app");
+    </script>
+  </body>
+</html>

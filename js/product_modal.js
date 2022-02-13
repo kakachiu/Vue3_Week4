@@ -2,9 +2,8 @@ export default {
   data() {
     return {};
   },
-  props: ["temp"],
+  props: ["temp", "productModal"],
   template: `
-    <div class="modal fade" id="productModal" ref="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl">
         <div class="modal-content border-0">
           <div class="modal-header bg-info text-white">
@@ -19,6 +18,7 @@ export default {
                     <label class="form-label" for="imageUrl">輸入圖片網址</label>
                     <input class="form-control" type="text" placeholder="請輸入圖片連結" v-model="temp.imageUrl" />
                   </div><img class="img-fluid" :src="temp.imageUrl" alt="" />
+                  <input type="file" class="mb-3"  @change="upload($event,'single')" >
                 </div>
                 <div v-if="temp.imagesUrl">
                   <!-- 跑 v-for 印出陣列內容-->
@@ -28,6 +28,7 @@ export default {
                       <label class="form-label" for="imageUrl">圖片網址</label>
                       <input class="form-control mb-2" v-model="temp.imagesUrl[index]" type="text" placeholder="請輸入圖片連結" />
                     </div><img class="img-fluid mb-2" :src="image" />
+                    <input type="file" class="mb-3"  @change="upload($event,'morePic',index)" >
                     <input class="btn btn-outline-danger w-100" type="button" value="刪除圖片" @click="delImage(index)" />
                   </div>
                   <!-- 如果陣列為空或是當前陣列長度-1就顯示新增圖片按鈕-->
@@ -37,7 +38,7 @@ export default {
                 </div>
                 <!-- 當沒有 imagesUrl 陣列時顯示新增圖片按鈕-->
                 <div v-else>
-                  <button class="btn btn-outline-primary btn-sm d-block w-100" @click="createImages">新增圖片</button>
+                  <button class="btn btn-outline-primary btn-sm d-block w-100 " @click="createImages">新增圖片</button>
                 </div>
               </div>
               <div class="col-sm-8">
@@ -89,17 +90,67 @@ export default {
           </div>
         </div>
       </div>
-    </div>
   `,
   methods: {
-    checkEdit() {
-      this.$emit("checkEdit");
+    // 上傳圖片
+    upload(e, value, index) {
+      const url = "https://vue3-course-api.hexschool.io/v2";
+      const path = "kakachiu";
+
+      let file = e.target.files[0];
+      const formData = new FormData();
+      formData.append("file-to-upload", file);
+
+      axios
+        .post(`${url}/api/${path}/admin/upload`, formData)
+        .then(res => {
+          alert("上傳成功");
+          if (value == "single") {
+            this.temp.imageUrl = res.data.imageUrl; // 單圖
+          } else {
+            this.temp.imagesUrl[index] = res.data.imageUrl; //多圖
+          }
+        })
+        .catch(error => {
+          alert("上傳失敗");
+        });
     },
     createImages() {
-      this.$emit("createImages");
+      this.temp.imagesUrl = [];
+      this.temp.imagesUrl.push("");
     },
     delImage(id) {
-      this.$emit("delImage", id);
+      this.temp.imagesUrl.splice(id, 1);
+    },
+    checkEdit() {
+      const url = "https://vue3-course-api.hexschool.io/v2";
+      const path = "kakachiu";
+
+      if (!this.temp.id) {
+        axios
+          .post(`${url}/api/${path}/admin/product/`, { data: this.temp })
+          .then(res => {
+            alert(res.data.message);
+            this.productModal.hide();
+            this.$emit("getProducts");
+          })
+          .catch(error => {
+            alert(error.response.data.message);
+          });
+      } else {
+        axios
+          .put(`${url}/api/${path}/admin/product/${this.temp.id}`, {
+            data: this.temp
+          })
+          .then(res => {
+            alert(res.data.message);
+            this.productModal.hide();
+            this.$emit("getProducts");
+          })
+          .catch(error => {
+            alert(error.response.data.message);
+          });
+      }
     }
   }
 };
